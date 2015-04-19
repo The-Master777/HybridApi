@@ -1,0 +1,2 @@
+# Python Speedport Hybrid Api
+An unofficial python-api for the Speedport Hybrid CPE sold by Deutsche Telekom. The router is manufactured by Huawei and is used to bond LTE and DSL WAN-interfaces forming a hybrid access path.
