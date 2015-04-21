@@ -9,6 +9,7 @@ import hashlib
 import re
 # from pbkdf2 import PBKDF2 # Moved to SpeedportHybridApi._getDerivedKey()
 
+
 class SpeedportHybridApi:
 	"""An Api for the Speedport Hybrid's web interface"""
 
@@ -45,10 +46,13 @@ class SpeedportHybridApi:
 			return '%s' % s if self.Cause is None else '%s - Cause: %s' % (s, str(self.Cause))
 
 		def __str__(self):
-			return (('%s > %s' % (self.message , self.Cause.message)) if self.Cause is not None and self.Cause.hasattr('message') else self.message)
+			if self.Cause is not None and self.Cause.hasattr('message'):
+				return '%s > %s' % (self.message, self.Cause.message)\
+
+			return self.message
 
 	class RequestException(ApiException):
-		"""An exception for session-related problems"""
+		"""An exception to be risen if case of request-related problems"""
 		def __init__(self, message, cause):
 			super(SpeedportHybridApi.RequestException, self).__init__(message, cause)
 
@@ -60,7 +64,7 @@ class SpeedportHybridApi:
 	class MissingSessionException(SessionException):
 		"""An exception in case of a missing session"""
 		def __init__(self):
-			super(SpeedportHybridApi.MissingSessionException, self).__init__('The session has not been set and thus is missing')									
+			super(SpeedportHybridApi.MissingSessionException, self).__init__('The session has not been set and thus is missing')
 
 	class JsonParserException(ApiException):
 		"""An exception in case of parsing an invalid JSON string"""
@@ -254,7 +258,7 @@ class SpeedportHybridApi:
 		# 2) Calculate response
 		response, salt = self._getChallengeResponse(pw, challenge)
 
-		loginReqData = { 'showpw': 0, 'password': response } # if showpw = 1 then password_shaddowed = password
+		loginReqData = {'showpw': 0, 'password': response}  # if 'showpw' = '1' then 'password_shaddowed' = password
 
 		# 3) Send response
 		try:
@@ -271,7 +275,7 @@ class SpeedportHybridApi:
 			raise SpeedportHybridApi.ApiException('parsing login response failed', e)
 
 		# 4) Evaluate response
-		login_status = res['login'].Value # Values: 'success' or 'failes'
+		login_status = res['login'].Value  # Values: 'success' or 'failed'
 
 		# Check for success
 		if login_status != 'success':
@@ -284,7 +288,7 @@ class SpeedportHybridApi:
 
 		self.Session = session
 
-		return True, session # Login success, no advanced parameters
+		return True, session  # Login success, no advanced parameters
 
 	def logout(self):
 		"""Perform logout operation"""
@@ -331,4 +335,4 @@ def main():
 	return api.Session.asList()
 
 if __name__ == "__main__":
-    main()
+	main()
