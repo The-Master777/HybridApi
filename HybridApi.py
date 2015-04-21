@@ -47,7 +47,7 @@ class SpeedportHybridApi:
 
 		def __str__(self):
 			if self.Cause is not None and self.Cause.hasattr('message'):
-				return '%s > %s' % (self.message, self.Cause.message)\
+				return '%s > %s' % (self.message, self.Cause.message)
 
 			return self.message
 
@@ -166,7 +166,7 @@ class SpeedportHybridApi:
 
 		# Set cookie-header if needed
 		if 'cookies' not in params and not noSession:
-			params['cookies'] = { 'challengev': self.Session.Challenge, 'derivedk': self.Session.DerivedKey, 'SessionID_R3': self.Session.ID }
+			params['cookies'] = {'challengev': self.Session.Challenge, 'derivedk': self.Session.DerivedKey, 'SessionID_R3': self.Session.ID}
 
 		r = method(uri, **params)
 
