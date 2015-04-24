@@ -10,16 +10,19 @@ import re
 # from pbkdf2 import PBKDF2 # Moved to SpeedportHybridApi._getDerivedKey()
 
 
-class SpeedportHybridApi:
+class SpeedportHybridApi(object):
 	"""An Api for the Speedport Hybrid's web interface"""
 
-	Host = 'speedport.ip'
-	Session = None
-	RequestParams = { 
-		'timeout': 5, # Time out after 5s
-	}
-
 	def __init__(self, host=None, session=None):
+		super(SpeedportHybridApi, self).__init__()
+
+		# Initialize default values
+		self.Host = 'speedport.ip'
+		self.RequestParams = { 
+			'timeout': 5, # Time out after 5s
+		}
+		self.Session = None
+
 		if host is not None:
 			self.Host = host
 
@@ -32,8 +35,6 @@ class SpeedportHybridApi:
 
 	class ApiException(Exception):
 		"""The baseclass for exceptions raised by SpeedportHybridApi"""
-
-		Cause = None
 
 		def __init__(self, message, cause = None):
 			super(SpeedportHybridApi.ApiException, self).__init__(message)
@@ -76,10 +77,6 @@ class SpeedportHybridApi:
 
 	class ApiSession(object):
 		"""A container for SpeedportHybridApi sessions"""
-		Host = None
-		Challenge = None
-		DerivedKey = None
-		ID = None
 
 		def __init__(self, host, challenge, dk, sid):
 			super(SpeedportHybridApi.ApiSession, self).__init__()
