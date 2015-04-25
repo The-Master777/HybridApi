@@ -1,6 +1,8 @@
 # Python Speedport Hybrid Api
 An unofficial python-api for the Speedport Hybrid CPE sold by Deutsche Telekom. The router is manufactured by Huawei and is used to bond LTE and DSL WAN-interfaces forming a hybrid access path.
 
+[![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/The-Master777/HybridApi/master/LICENSE)
+
 ## Usage Example
   * Create a `SpeedportHybridApi`-instance and login using your *router web-ui password*.
   * Use an instance of the `BoxEndpointScraper` to access your favoured router-information resource
