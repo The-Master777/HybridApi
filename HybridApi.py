@@ -7,6 +7,7 @@ import requests
 import json
 import hashlib
 import re
+from datetime import timedelta, datetime
 # from pbkdf2 import PBKDF2 # Moved to SpeedportHybridApi._getDerivedKey()
 
 
@@ -86,6 +87,9 @@ class SpeedportHybridApi(object):
 			self.DerivedKey = dk
 			self.ID = sid
 
+			# Validity check properties
+			self.LastCheckTime = datetime.min
+
 		def apply(self, api):
 			api.Host = self.Host
 			api.Session = self
@@ -104,13 +108,35 @@ class SpeedportHybridApi(object):
 			"""Return session parameters in a list"""
 			return [self.Host, self.Challenge, self.DerivedKey, self.ID]
 
-		def isValid(self, api=None):
-			"""Determine if the current session is still valid
+		@staticmethod
+		def _isTimedOut(reference, timeout):
+			return datetime.utcnow() > reference + timedelta(seconds = timeout)
 
-			* NOT IMPLEMENTED YET *"""
+		def isValid(self, api=None, timeout=5):
+			"""Determine if the current session is still valid and cache result for specified number of seconds"""
+
+			# Check if last check is still valid and return True if it is
+			if timeout > 0 and not SpeedportHybridApi.ApiSession._isTimedOut(self.LastCheckTime, timeout):
+				return True
+
+			# Get api-instance to work on
 			api = api or self.getNewApi()
 
-			raise NotImplementedError()
+			# Check if logged in
+			try:
+				loginState, r = api.loadJson('data/login.json', jsonvar=True)
+				login = str(loginState['login'].Value).lower() in ['true']
+			except Exception as e:
+				print(e)
+				return False
+
+			if not login:
+				return False
+
+			# Store time of check
+			self.LastCheckTime = datetime.utcnow()
+
+			return True
 
 	class JsonVar(object):
 		"""A container for json-variables returned by the router-api"""
@@ -131,6 +157,17 @@ class SpeedportHybridApi(object):
 	def hasSession(self):
 		"""Checks if there is a session-object associated"""
 		return self.Session is not None
+
+	def enforceSession(self, timeout=5.0):
+		"""Checks if there is a valid session or raises an exception if not"""
+
+		if not self.hasSession():
+			raise SpeedportHybridApi.MissingSessionException()
+
+		if not self.Session.isValid(api=self, timeout=timeout):
+			raise SpeedportHybridApi.SessionException('The session is outdated and thus invalid')
+
+		return True
 
 	def _makeUrl(self, path, protocol='http'):
 		"""Format a request uri based on current Host and requested path to form a url"""
@@ -159,7 +196,9 @@ class SpeedportHybridApi(object):
 		# Expect JSON response, not HTML
 		# Todo: Implement generic expectation-handler
 		if expectMimeType is not None:
-			assert r.headers['content-type'] in expectMimeType
+			if not r.headers['content-type'] in expectMimeType:
+				raise SpeedportHybridApi.RequestException('response contined unexpected mime-type', None)
+
 			#assert r.headers['content-type'] != 'text/html'
 
 		# Parse response
@@ -298,7 +337,10 @@ class SpeedportHybridApi(object):
 
 		# Check for success
 		if login_status != 'success':
-			return self, False, {'locked': res['login_locked'].Value, 'other': res['login_other'].Value if 'login_other' in res else None} # Login failed
+			r = { 'locked': res['login_locked'].Value, 
+			      'other': res['login_other'].Value if 'login_other' in res else None }
+
+			return self, False, r # Login failed
 
 		# 5) Derive key and create session-object
 		dk = self._getDerivedKey(pw, salt)
@@ -347,8 +389,6 @@ def main():
 		return
 
 	print(r)
-
-	#print(api.loadJson('data/lteinfo.json'))
 
 	return api.Session.asList()
 

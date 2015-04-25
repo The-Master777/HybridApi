@@ -72,7 +72,7 @@ class BoxEndpointScraper(object):
 			"""Scrapes the resource and returns parsed JSON object"""
 			uri = 'data/%s.json' % self.EndpointName
 
-			return self.Scraper.scrape(uri, jsonvar = self.IsJsonVar)
+			return self.Scraper.scrape(uri, jsonvar = self.IsJsonVar, requiresLogin = self.RequiresLogin)
 
 		def __repr__(self):
 			return '[%s: (%s,%s,%s) @%s]' % (self.EndpointName, self.RequiresLogin, self.IsJsonVar, self.Description[:20], self.Scraper)
@@ -88,14 +88,22 @@ class BoxEndpointScraper(object):
 
 			return {key: value for (key, value) in [(f['file'], BoxEndpointScraper.ResourceDescriptor(scraper, f)) for f in arr]}
 
-	def scrape(self, uri = None, jsonvar=False):
+	def scrape(self, uri = None, jsonvar=False, requiresLogin=True):
 		"""Perform a request to the resource and parse response"""
 
+		# Get uri to load
 		uri = uri or self.Uri
 
+		# Ensure it is not none
 		assert uri is not None
 
+		# Check if there must be a valid session
+		if requiresLogin:
+			self.Api.enforceSession()
+
+		# Load and parse json-response
 		json, r = self.Api.loadJson(uri, jsonvar=jsonvar)
+
 		return json
 
 	# A list of known endpoint descriptors
