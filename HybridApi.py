@@ -123,22 +123,33 @@ class SpeedportHybridApi(object):
 			#self.Source = jsonVarObject # Store reference to jsonVarObject
 
 		def __str__(self):
-			return 'JsonVar "%s" [%s]: (%d) %s%s' % (self.ID, self.Type, len(self.Value), self.Value[:20].__repr__(), ('..' if len(self.Value) > 20 else ''))
+			return self.Value
 
 		def __repr__(self):
-			return '<%s>' % str(self)
+			return '[(JsonVar) "%s" [%s]: (%d) %s%s]' % (self.ID, self.Type, len(self.Value), self.Value[:20].__repr__(), ('..' if len(self.Value) > 20 else ''))
 
 	def hasSession(self):
 		"""Checks if there is a session-object associated"""
 		return self.Session is not None
 
-	def _makeUri(self, path):
-		"""Format a request uri based on current Host and requested path"""
-		return 'http://%s/%s' % (self.Host, path)
+	def _makeUrl(self, path, protocol='http'):
+		"""Format a request uri based on current Host and requested path to form a url"""
+		return '%s://%s/%s' % (protocol, self.Host, path)
+	
+	_jsonMimeTypes = ['application/javascript', 'application/json']
 
-	def loadJson(self, uri, expectCode=200, fix=True):
+	def loadJson(self, uri, jsonvar=False, expectCode=200, fix=True, expectMimeType=_jsonMimeTypes):
 		"""Load JSON via a GET-request from given path. The http-status-code expectCode is asserted. By default invalid json responses are fixed."""
-		
+
+		params = None
+		headers = None
+
+		if expectMimeType is not None:
+			headers = {'Accept': ','.join(expectMimeType)}
+
+		if headers is not None:
+			params = {'headers': headers}
+
 		# Perform request
 		try:
 			r = self._getRequest(uri, expectCode=expectCode)
@@ -147,11 +158,13 @@ class SpeedportHybridApi(object):
 
 		# Expect JSON response, not HTML
 		# Todo: Implement generic expectation-handler
-		assert r.headers['content-type'] != 'text/html'
+		if expectMimeType is not None:
+			assert r.headers['content-type'] in expectMimeType
+			#assert r.headers['content-type'] != 'text/html'
 
 		# Parse response
 		try: 
-			res = self._parseJsonResponse(r.text, fix=fix)
+			res = self._parseJsonResponse(r.text, fix=fix, isJsonVars=jsonvar)
 		except Exception as e:
 			raise SpeedportHybridApi.ApiException('parsing json response failed', e)
 
@@ -159,7 +172,7 @@ class SpeedportHybridApi(object):
 
 	def _performRequest(self, method, uri, params, expectCode, noSession):
 		"""Perform a http request with specified characteristics"""
-		uri = self._makeUri(uri)
+		url = self._makeUrl(uri)
 
 		# Check is session used and existing
 		if not (noSession or self.hasSession()):
@@ -169,7 +182,7 @@ class SpeedportHybridApi(object):
 		if 'cookies' not in params and not noSession:
 			params['cookies'] = {'challengev': self.Session.Challenge, 'derivedk': self.Session.DerivedKey, 'SessionID_R3': self.Session.ID}
 
-		r = method(uri, **params)
+		r = method(url, **params)
 
 		# Assert http status code expectation (200 OK default)
 		if expectCode is not None:
@@ -210,6 +223,11 @@ class SpeedportHybridApi(object):
 		try:
 			# Parse JSON String
 			o = json.loads(s)
+
+			# Fix response
+			if fix:
+				if isinstance(o, list) and len(o) == 1:
+					o = o[0]
 
 			# Parse vars if needed
 			if isJsonVars:
