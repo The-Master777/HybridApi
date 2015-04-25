@@ -298,16 +298,16 @@ class SpeedportHybridApi(object):
 
 		# Check for success
 		if login_status != 'success':
-			return False, {'locked': res['login_locked'].Value, 'other': res['login_other'].Value if 'login_other' in res else None} # Login failed
+			return self, False, {'locked': res['login_locked'].Value, 'other': res['login_other'].Value if 'login_other' in res else None} # Login failed
 
-		# 5)
+		# 5) Derive key and create session-object
 		dk = self._getDerivedKey(pw, salt)
 
 		session = SpeedportHybridApi.ApiSession(self.Host, challenge, dk, sid)
 
 		self.Session = session
 
-		return True, session  # Login success, no advanced parameters
+		return self, True, session  # Login success, no advanced parameters
 
 	def logout(self):
 		"""Perform logout operation"""
@@ -336,8 +336,7 @@ def main():
 	host = sys.argv[1]
 	pw   = sys.argv[2]
 
-	api = SpeedportHybridApi(host)
-	s,r = api.login(pw)
+	api, s, r = SpeedportHybridApi(host).login(pw)
 
 	if not s:
 		print('Login failed, wait %s seconds until retry' % r['locked'])
