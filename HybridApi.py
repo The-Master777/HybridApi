@@ -128,6 +128,10 @@ class SpeedportHybridApi(object):
 		def __repr__(self):
 			return '<%s>' % str(self)
 
+	def hasSession(self):
+		"""Checks if there is a session-object associated"""
+		return self.Session is not None
+
 	def _makeUri(self, path):
 		"""Format a request uri based on current Host and requested path"""
 		return 'http://%s/%s' % (self.Host, path)
@@ -158,7 +162,7 @@ class SpeedportHybridApi(object):
 		uri = self._makeUri(uri)
 
 		# Check is session used and existing
-		if (not noSession) and (self.Session is None):
+		if not (noSession or self.hasSession()):
 			raise SpeedportHybridApi.MissingSessionException()
 
 		# Set cookie-header if needed
