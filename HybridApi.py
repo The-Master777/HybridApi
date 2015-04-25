@@ -18,14 +18,11 @@ class SpeedportHybridApi(object):
 		super(SpeedportHybridApi, self).__init__()
 
 		# Initialize default values
-		self.Host = 'speedport.ip'
+		self.Host = host or 'speedport.ip'
 		self.RequestParams = { 
 			'timeout': 5, # Time out after 5s
 		}
 		self.Session = None
-
-		if host is not None:
-			self.Host = host
 
 		if session is not None:
 			# Session overwrites host
