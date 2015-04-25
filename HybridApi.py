@@ -80,6 +80,13 @@ class SpeedportHybridApi(object):
 		"""A container for SpeedportHybridApi sessions"""
 
 		def __init__(self, host, challenge, dk, sid):
+			"""Instantiate a new session
+
+			:param host: The host this session is bound to
+			:param challenge: The challenge retrieved at login
+			:param dk: The derived key
+			:param sid: The session-id
+			"""
 			super(SpeedportHybridApi.ApiSession, self).__init__()
 
 			self.Host = host
@@ -91,17 +98,19 @@ class SpeedportHybridApi(object):
 			self.LastCheckTime = datetime.min
 
 		def apply(self, api):
+			"""Configure api-instance to use this session
+
+			:param api: The api-instance that should be configured
+			"""
+
 			api.Host = self.Host
 			api.Session = self
 
-		def __str__(self):
-			return 'Session at %s: SessionID_R3=%s; challengev=%s; derivedk=%s' % (self.Host, self.ID, self.Challenge, self.DerivedKey)
-
-		def __repr(self):
-			return '<%s>' % str(self)
-
 		def getNewApi(self):
-			"""Create a new SpeedportHybridApi instance based on this session"""
+			"""Create a new SpeedportHybridApi instance based on this session
+
+			:rtype : SpeedportHybridApi
+			"""
 			return SpeedportHybridApi(session=self)
 
 		def asList(self):
@@ -110,10 +119,21 @@ class SpeedportHybridApi(object):
 
 		@staticmethod
 		def _isTimedOut(reference, timeout):
+			"""Check if there is more time than timeout (given in seconds) elapsed since reference
+
+			:param reference: The reference point in time
+			:param timeout: The number of seconds until timeout
+			:rtype : Boolean
+			"""
+
 			return datetime.utcnow() > reference + timedelta(seconds = timeout)
 
 		def isValid(self, api=None, timeout=5):
-			"""Determine if the current session is still valid and cache result for specified number of seconds"""
+			"""Determine if the current session is still valid and cache result for specified number of seconds
+
+			:param api: The api-instance to operate on, or None if api should be created on-the-fly
+			:param timeout: The timeout in seconds used to cache old check-results
+			"""
 
 			# Check if last check is still valid and return True if it is
 			if timeout > 0 and not SpeedportHybridApi.ApiSession._isTimedOut(self.LastCheckTime, timeout):
@@ -138,15 +158,24 @@ class SpeedportHybridApi(object):
 
 			return True
 
+		def __str__(self):
+			return 'Session at %s: SessionID_R3=%s; challengev=%s; derivedk=%s' % (self.Host, self.ID, self.Challenge, self.DerivedKey)
+
+		def __repr(self):
+			return '<%s>' % str(self)
+
 	class JsonVar(object):
 		"""A container for json-variables returned by the router-api"""
 		def __init__(self, jsonVarObject):
+			"""
+			Instantiate a new JsonVar object. A container for JsonVar-variables.
+			:param jsonVarObject: The JSON dictionary object used to create this container, having 'varid', 'varvalue', and 'vartype'
+			"""
 			super(SpeedportHybridApi.JsonVar, self).__init__()
 
 			self.ID = jsonVarObject['varid']
 			self.Value = jsonVarObject['varvalue']
 			self.Type = jsonVarObject['vartype']
-			#self.Source = jsonVarObject # Store reference to jsonVarObject
 
 		def __str__(self):
 			return self.Value
@@ -154,14 +183,18 @@ class SpeedportHybridApi(object):
 		def __repr__(self):
 			return '[(JsonVar) "%s" [%s]: (%d) %s%s]' % (self.ID, self.Type, len(self.Value), self.Value[:20].__repr__(), ('..' if len(self.Value) > 20 else ''))
 
+	@property
 	def hasSession(self):
 		"""Checks if there is a session-object associated"""
 		return self.Session is not None
 
 	def enforceSession(self, timeout=5.0):
-		"""Checks if there is a valid session or raises an exception if not"""
+		"""Checks if there is a valid session or raises an exception if not
 
-		if not self.hasSession():
+		:param timeout: The timeout in seconds of the validity-cache
+		"""
+
+		if not self.hasSession:
 			raise SpeedportHybridApi.MissingSessionException()
 
 		if not self.Session.isValid(api=self, timeout=timeout):
@@ -170,36 +203,50 @@ class SpeedportHybridApi(object):
 		return True
 
 	def _makeUrl(self, path, protocol='http'):
-		"""Format a request uri based on current Host and requested path to form a url"""
+		"""Format a request url based on current Host and requested path
+
+		:param path: The path of the url
+		:param protocol: The protocol of the url
+		"""
 		return '%s://%s/%s' % (protocol, self.Host, path)
 	
 	_jsonMimeTypes = ['application/javascript', 'application/json']
 
 	def loadJson(self, uri, jsonvar=False, expectCode=200, fix=True, expectMimeType=_jsonMimeTypes):
-		"""Load JSON via a GET-request from given path. The http-status-code expectCode is asserted. By default invalid json responses are fixed."""
+		"""Load JSON via a GET-request from given path. The HTTP-Status-Code expectCode is asserted. By default invalid json responses are fixed.
 
-		params = None
+		:param uri: The url to load
+		:param jsonvar: Whether the response should be treated as JsonVar or not (default False)
+		:param expectCode: The expected HTTP-Status-Code (default 200)
+		:param fix: Whether to fix the json-string or not (default True)
+		:param expectMimeType: The expected response mime-type (default: application/javascript, application/json)
+		"""
+
+		# Construct params-dictionary
+		params = {}
 		headers = None
 
+		# Add accept-header if needed
 		if expectMimeType is not None:
 			headers = {'Accept': ','.join(expectMimeType)}
 
+		# Use default-parameters
+		params.update(self.RequestParams)
+
+		# Add headers to params if needed
 		if headers is not None:
-			params = {'headers': headers}
+			params.update({'headers': headers})
 
 		# Perform request
 		try:
-			r = self._getRequest(uri, expectCode=expectCode)
+			r = self._getRequest(uri, expectCode=expectCode, ownParams=params)
 		except Exception as e:
 			raise SpeedportHybridApi.RequestException('failed to perform json-request', e)
 
-		# Expect JSON response, not HTML
+		# Expect proper response type
 		# Todo: Implement generic expectation-handler
-		if expectMimeType is not None:
-			if not r.headers['content-type'] in expectMimeType:
-				raise SpeedportHybridApi.RequestException('response contined unexpected mime-type', None)
-
-			#assert r.headers['content-type'] != 'text/html'
+		if expectMimeType is not None and r.headers['content-type'] not in expectMimeType:
+			raise SpeedportHybridApi.RequestException('response contained unexpected mime-type', None)
 
 		# Parse response
 		try: 
@@ -214,7 +261,7 @@ class SpeedportHybridApi(object):
 		url = self._makeUrl(uri)
 
 		# Check is session used and existing
-		if not (noSession or self.hasSession()):
+		if not (noSession or self.hasSession):
 			raise SpeedportHybridApi.MissingSessionException()
 
 		# Set cookie-header if needed
@@ -296,7 +343,10 @@ class SpeedportHybridApi(object):
 		return dk
 
 	def login(self, pw):
-		"""Perform login operation using password"""
+		"""Perform login operation using password
+
+		:param pw: The web-ui password
+		"""
 		loginJsonUri = 'data/Login.json'
 
 		# 1) Get challenge
@@ -316,7 +366,7 @@ class SpeedportHybridApi(object):
 		# 2) Calculate response
 		response, salt = self._getChallengeResponse(pw, challenge)
 
-		loginReqData = {'showpw': 0, 'password': response}  # if 'showpw' = '1' then 'password_shaddowed' = password
+		loginReqData = {'showpw': 0, 'password': response}  # if 'showpw' = '1' then 'password_shadowed' = password
 
 		# 3) Send response
 		try:

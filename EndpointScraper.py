@@ -7,7 +7,7 @@ information resources."""
 
 
 class BoxEndpointScraper(object):
-	"""The BoxEndpointScraper is capable of loading information resources provied by the router's web-interface.
+	"""The BoxEndpointScraper is capable of loading information resources provided by the router's web-interface.
 	After initialization the endpoints can be accessed using their name either via the Resources-property of an
 	scraper-instance, or directly by accessing the endpoint's name.
 
@@ -17,6 +17,13 @@ class BoxEndpointScraper(object):
 	iterate over known (or default) resources."""
 
 	def __init__(self, api, uri = None, endpoints = None):
+		"""Instantiate a new BoxEndpointScraper
+
+		:param api: The api-instance to use
+		:param uri: The endpoint-uri to bind to, or None if no bind target (default None)
+		:param endpoints: The list of custom endpoint descriptors, or None if default endpoints should be used (default None)
+		"""
+
 		super(BoxEndpointScraper, self).__init__()
 
 		# An api instance is required
@@ -60,6 +67,12 @@ class BoxEndpointScraper(object):
 		"""The ResourceDescriptor defines an endpoint that is accessed for scraping"""
 
 		def __init__(self, scraper, epdict):
+			"""Instantiate a new ResourceDescriptor of a scraper using an endpoint descriptor
+
+			:param scraper: The scraper to use
+			:param epdict: The endpoint descriptor dictionary
+			"""
+
 			super(BoxEndpointScraper.ResourceDescriptor, self).__init__()
 
 			self.Scraper = scraper
@@ -70,6 +83,7 @@ class BoxEndpointScraper(object):
 
 		def scrape(self):
 			"""Scrapes the resource and returns parsed JSON object"""
+
 			uri = 'data/%s.json' % self.EndpointName
 
 			return self.Scraper.scrape(uri, jsonvar = self.IsJsonVar, requiresLogin = self.RequiresLogin)
@@ -79,17 +93,26 @@ class BoxEndpointScraper(object):
 
 		@staticmethod
 		def make(scraper, arr):
-			"""Converts an endpoint description to a ResourceDescriptor,
+			"""Converts endpoint descriptors to a dictionary of ResourceDescriptors,
 			Expects a list of dictionaries containing the fields al follows:
-			  * file: File-Name of the endpoint
-			  * description: A descriptive text (optional, default None)
-			  * login: Whether an active session is required or not (optional, default True)
-			  * jsonvar: Whether the response is encoded as JsonVar or plain JSON (optional, default False)"""
+			* file: File-Name of the endpoint
+			* description: A descriptive text (optional, default None)
+			* login: Whether an active session is required or not (optional, default True)
+			* jsonvar: Whether the response is encoded as JsonVar or plain JSON (optional, default False)
+
+			:param scraper: The scraper to reference
+			:param arr: The list of endpoint descriptors
+			"""
 
 			return {key: value for (key, value) in [(f['file'], BoxEndpointScraper.ResourceDescriptor(scraper, f)) for f in arr]}
 
-	def scrape(self, uri = None, jsonvar=False, requiresLogin=True):
-		"""Perform a request to the resource and parse response"""
+	def scrape(self, uri=None, jsonvar=False, requiresLogin=True):
+		"""Perform a request to the resource and parse response
+
+		:param uri: The uri of the resource to scrape or None if bound uri should be used (default None)
+		:param jsonvar: Whether to treat the response as JsonVar or not (default False)
+		:param requiresLogin: Whether the resource requires an active session (default True)
+		"""
 
 		# Get uri to load
 		uri = uri or self.Uri
