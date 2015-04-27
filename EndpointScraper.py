@@ -75,11 +75,11 @@ class BoxEndpointScraper(object):
 
 			super(BoxEndpointScraper.ResourceDescriptor, self).__init__()
 
-			self.Scraper = scraper
-			self.EndpointName = epdict['file']
-			self.Description = epdict['description'] if 'description' in epdict else None
+			self.Scraper       = scraper
+			self.EndpointName  = epdict['file']
+			self.Description   = epdict['description'] if 'description' in epdict else None
 			self.RequiresLogin = epdict['login'] if 'login' in epdict else True
-			self.IsJsonVar = epdict['jsonvar'] if 'jsonvar' in epdict else False
+			self.IsJsonVar     = epdict['jsonvar'] if 'jsonvar' in epdict else False
 
 		def scrape(self):
 			"""Scrapes the resource and returns parsed JSON object"""
@@ -87,9 +87,6 @@ class BoxEndpointScraper(object):
 			uri = 'data/%s.json' % self.EndpointName
 
 			return self.Scraper.scrape(uri, jsonvar = self.IsJsonVar, requiresLogin = self.RequiresLogin)
-
-		def __repr__(self):
-			return '[%s: (%s,%s,%s) @%s]' % (self.EndpointName, self.RequiresLogin, self.IsJsonVar, self.Description[:20], self.Scraper)
 
 		@staticmethod
 		def make(scraper, arr):
@@ -106,6 +103,9 @@ class BoxEndpointScraper(object):
 
 			return {key: value for (key, value) in [(f['file'], BoxEndpointScraper.ResourceDescriptor(scraper, f)) for f in arr]}
 
+		def __repr__(self):
+			return '[%s: (%s,%s,%s) @%s]' % (self.EndpointName, self.RequiresLogin, self.IsJsonVar, self.Description[:20], self.Scraper)
+
 	def scrape(self, uri=None, jsonvar=False, requiresLogin=True):
 		"""Perform a request to the resource and parse response
 
@@ -120,12 +120,8 @@ class BoxEndpointScraper(object):
 		# Ensure it is not none
 		assert uri is not None
 
-		# Check if there must be a valid session
-		if requiresLogin:
-			self.Api.enforceSession()
-
 		# Load and parse json-response
-		json, r = self.Api.loadJson(uri, jsonvar=jsonvar)
+		json, r = self.Api.loadJson(uri, jsonvar=jsonvar, noSession=(not requiresLogin))
 
 		return json
 

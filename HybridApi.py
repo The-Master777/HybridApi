@@ -45,7 +45,7 @@ class SpeedportHybridApi(object):
 			return '%s' % s if self.Cause is None else '%s - Cause: %s' % (s, str(self.Cause))
 
 		def __str__(self):
-			if self.Cause is not None and self.Cause.hasattr('message'):
+			if self.Cause is not None:
 				return '%s > %s' % (self.message, self.Cause.message)
 
 			return self.message
@@ -76,7 +76,7 @@ class SpeedportHybridApi(object):
 	class ApiSession(object):
 		"""A container for SpeedportHybridApi sessions"""
 
-		def __init__(self, host, challenge, dk, sid):
+		def __init__(self, host, challenge, dk, sid, checktime=datetime.min):
 			"""Instantiate a new session
 
 			:param host: The host this session is bound to
@@ -92,7 +92,7 @@ class SpeedportHybridApi(object):
 			self.ID = sid
 
 			# Validity check properties
-			self.LastCheckTime = datetime.min
+			self.LastCheckTime = checktime
 
 		def apply(self, api):
 			"""Configure api-instance to use this session
@@ -123,7 +123,14 @@ class SpeedportHybridApi(object):
 			:rtype : Boolean
 			"""
 
-			return datetime.utcnow() > reference + timedelta(seconds = timeout)
+			delta = timedelta(seconds = timeout)
+
+			# Prevent overflow if reference is > ( datetime.max - delta)
+			if datetime.max - delta < reference:
+				return False
+
+			# Check timeout: If now is later than (last-time + delta), then there is an timeout!
+			return datetime.utcnow() > reference + delta
 
 		def isValid(self, api=None, timeout=5):
 			"""Determine if the current session is still valid and cache result for specified number of seconds
@@ -141,7 +148,7 @@ class SpeedportHybridApi(object):
 
 			# Check if logged in
 			try:
-				loginState, r = api.loadJson('data/login.json', jsonvar=True)
+				loginState, r = api.loadJson('data/login.json', jsonvar=True, noEnforceSession=True, expectMimeType=None)
 				login = str(loginState['login'].Value).lower() in ['true']
 			except Exception as e:
 				print(e)
@@ -185,15 +192,21 @@ class SpeedportHybridApi(object):
 		"""Checks if there is a session-object associated"""
 		return self.Session is not None
 
-	def enforceSession(self, timeout=5.0):
+	def enforceSession(self, noSession=False, timeout=5.0):
 		"""Checks if there is a valid session or raises an exception if not
 
 		:param timeout: The timeout in seconds of the validity-cache
 		"""
 
+		# Don't care about session-existance if there is no need
+		if noSession:
+			return True
+
+		# Check if there is a session associated
 		if not self.hasSession:
 			raise SpeedportHybridApi.MissingSessionException()
 
+		# Check if the session is valid, cache result for `timeout`-seconds
 		if not self.Session.isValid(api=self, timeout=timeout):
 			raise SpeedportHybridApi.SessionException('The session is outdated and thus invalid')
 
@@ -209,7 +222,7 @@ class SpeedportHybridApi(object):
 	
 	_jsonMimeTypes = ['application/javascript', 'application/json']
 
-	def loadJson(self, uri, jsonvar=False, expectCode=200, fix=True, expectMimeType=_jsonMimeTypes):
+	def loadJson(self, uri, jsonvar=False, expectCode=200, noSession=False, noEnforceSession=False, fix=True, expectMimeType=_jsonMimeTypes):
 		"""Load JSON via a GET-request from given path. The HTTP-Status-Code expectCode is asserted. By default invalid json responses are fixed.
 
 		:param uri: The url to load
@@ -236,7 +249,7 @@ class SpeedportHybridApi(object):
 
 		# Perform request
 		try:
-			r = self._getRequest(uri, expectCode=expectCode, ownParams=params)
+			r = self._getRequest(uri, expectCode=expectCode, noSession=noSession, noEnforceSession=noEnforceSession, ownParams=params)
 		except Exception as e:
 			raise SpeedportHybridApi.RequestException('failed to perform json-request', e)
 
@@ -253,13 +266,13 @@ class SpeedportHybridApi(object):
 
 		return res, r # res is dict of JsonVar, r is request object
 
-	def _performRequest(self, method, uri, params, expectCode, noSession):
+	def _performRequest(self, method, uri, params, expectCode, noSession, noEnforceSession):
 		"""Perform a http request with specified characteristics"""
-		url = self._makeUrl(uri)
 
-		# Check is session used and existing
-		if not (noSession or self.hasSession):
-			raise SpeedportHybridApi.MissingSessionException()
+		if not noEnforceSession:
+			self.enforceSession(noSession)
+
+		url = self._makeUrl(uri)
 
 		# Set cookie-header if needed
 		if 'cookies' not in params and not noSession:
@@ -273,19 +286,19 @@ class SpeedportHybridApi(object):
 
 		return r
 
-	def _getRequest(self, uri, expectCode=200, noSession=False, ownParams=None):
+	def _getRequest(self, uri, expectCode=200, noSession=False, noEnforceSession=False, ownParams=None):
 		"""Perform http-get request with specified characteristics"""
 		params = ownParams or self.RequestParams.copy()
 
-		return self._performRequest(requests.get, uri, params, expectCode, noSession)
+		return self._performRequest(requests.get, uri, params, expectCode, noSession, noEnforceSession)
 
-	def _postRequest(self, uri, data, expectCode=200, noSession=False, ownParams=None):
+	def _postRequest(self, uri, data, expectCode=200, noSession=False, noEnforceSession=False, ownParams=None):
 		"""Perform http-post request with specified characteristics and data"""
 		params = (ownParams or self.RequestParams).copy()
 
 		params['data'] = data
 
-		return self._performRequest(requests.post, uri, params, expectCode, noSession)
+		return self._performRequest(requests.post, uri, params, expectCode, noSession, noEnforceSession)
 
 	def _parseJsonResponse(self, jsonString, isJsonVars=False, fix=True):
 		"""Parse JSON-String. Invalid json is sanified per default. If requested the json is parsed as JsonVar-dict."""
@@ -392,7 +405,7 @@ class SpeedportHybridApi(object):
 		# 5) Derive key and create session-object
 		dk = self._getDerivedKey(pw, salt)
 
-		session = SpeedportHybridApi.ApiSession(self.Host, challenge, dk, sid)
+		session = SpeedportHybridApi.ApiSession(self.Host, challenge, dk, sid, checktime=datetime.utcnow())
 
 		self.Session = session
 
