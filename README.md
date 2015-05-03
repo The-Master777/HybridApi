@@ -5,7 +5,7 @@ An unofficial python-api for the Speedport Hybrid CPE sold by Deutsche Telekom. 
 
 ## Usage Example
 
-**You can find more examples like [the one bewlow](Examples/lteinfo.py) one in the [Examples](Examples) directory!**
+**You can find more examples like [the one below](Examples/lteinfo.py) one in the [Examples](Examples) directory!**
 
   * Create a `SpeedportHybridApi`-instance and login using your *router web-ui password*.
   * Use an instance of the `BoxEndpointScraper` to access your favoured router-information resource
