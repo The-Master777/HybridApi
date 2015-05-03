@@ -387,9 +387,8 @@ class SpeedportHybridApi(object):
 		# Parse response
 		try: 
 			res = self._parseJsonResponse(r.text, True)
-
-			sid = r.cookies['SessionID_R3']
 		except Exception as e:
+			print(r.text)
 			raise SpeedportHybridApi.ApiException('parsing login response failed', e)
 
 		# 4) Evaluate response
@@ -401,6 +400,9 @@ class SpeedportHybridApi(object):
 			      'other': res['login_other'].Value if 'login_other' in res else None }
 
 			return self, False, r # Login failed
+
+		# Load cookies
+		sid = r.cookies['SessionID_R3']
 
 		# 5) Derive key and create session-object
 		dk = self._getDerivedKey(pw, salt)
