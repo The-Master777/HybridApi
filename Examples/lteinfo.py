@@ -6,7 +6,6 @@ import sys
 import pprint
 
 def getLteInfo(host='speedport.ip', password='* router web-ui password *'):
-    print(host, password)
     # `api` is your SpeedportHybridApi-instance,
     # `success` determines whether the login has been successful or not,
     # `r` contains extra information:
