@@ -151,7 +151,7 @@ class SpeedportHybridApi(object):
 				loginState, r = api.loadJson('data/login.json', jsonvar=True, noEnforceSession=True, expectMimeType=None)
 				login = str(loginState['login'].Value).lower() in ['true']
 			except Exception as e:
-				print(e)
+				#print(e)
 				return False
 
 			if not login:
@@ -300,14 +300,120 @@ class SpeedportHybridApi(object):
 
 		return self._performRequest(requests.post, uri, params, expectCode, noSession, noEnforceSession)
 
+	def _sanitizeJsonNestingLexer(self, str):
+		"""Sanitize wrong nestings of json elements by adding missing closing parentheses (brackets & braces)"""
+
+		# The relevant json terminals
+		CHR_BACKSLASH     = '\\'
+		CHR_QUOTE         = '"'
+		CHR_BRACKET_OPEN  = '['
+		CHR_BRACKET_CLOSE = ']'
+		CHR_BRACE_OPEN    = '{'
+		CHR_BRACE_CLOSE   = '}'
+
+		stack = []  # The stack for terminal-symbols
+		m = []      # The list of symbol insertions
+		esc = False # Whether the cursor is inside of an escape sequence
+
+		# Iterate over all characters
+		for p in xrange(len(str)):
+			c = str[p]
+
+			# Access the stack's topmost element without popping it
+			peek = stack[-1] if len(stack) > 0 else None
+
+			# Escape sequences begin with a 'Backslash' character
+			if c == CHR_BACKSLASH:
+				# Handle Escape sequence
+				esc = not esc
+				continue
+
+			elif c == CHR_QUOTE: # Handle quote characters to detect json-strings
+				if peek == CHR_QUOTE: # Check if the stacks current state is 'STRING'
+					if esc: # LEAVE ESC AFTER ESCAPED QUOTE
+						# Ignore escaped quote
+						esc = False
+						continue
+
+					# We leave the String
+					stack.pop()
+				else:
+					# We enter a String
+					stack.append(CHR_QUOTE) # State = 'STRING'
+
+			elif peek == CHR_QUOTE: # Currently the state is 'STRING'
+				if esc: # ESCAPED NONQUOTE
+					esc = False
+					continue
+
+				# Ignore the character, as we are in a String
+				continue
+
+			else: # Process non-string terminals
+				# Handle json-arrays and json-objects
+				if c == CHR_BRACKET_OPEN: # Opening Array Symbol
+					stack.append(CHR_BRACKET_CLOSE)
+
+				elif c == CHR_BRACE_OPEN: # Opening Object Symbol
+					stack.append(CHR_BRACE_CLOSE)
+
+				elif c in [CHR_BRACKET_CLOSE, CHR_BRACE_CLOSE]:
+					# Closing of the array / object if the symbol is on top of the stack
+					if peek == c:
+						stack.pop()
+
+					elif peek is not None: # If there is a different symbol, the nesting must be fixed
+						# Remember the missing symbol for fixing later:
+						#  - Copy current position p and the stack's topmost item
+						#  - Pop the item off the stack
+						m.append((p,peek))
+						stack.pop()
+
+						# Peek the new topmost item
+						peek = stack[-1] if len(stack) > 0 else None
+
+						# Pop the next item if it is equal to the current one (TODO: Handle advanced nestings ?!)
+						if c == peek:
+							stack.pop()
+					#else: # Unfixable nesting has been detected
+					# raise Exception('Invalid nesting')
+
+				else: # Unhandled literals
+					#print('LITERAL')
+					pass
+
+			# Ignore escape sequence if there wasn't a quote
+			#if esc:
+			#	print('LEAVE ESC')
+			esc = False
+
+		# Add spare items to the string in the right order
+		for _ in xrange(len(stack)):
+			str += stack.pop()
+
+		# Process (fix) the detected nesting-errors right-to-left
+		for _ in xrange(len(m)):
+			# The current tuple
+			q = m.pop()
+			
+			# Insert the symbol q[1] at the position p of the string
+			p = q[0]
+			str = str[:p] + q[1] + str[p:]
+
+		# Return the processed String
+		return str
+
 	def _parseJsonResponse(self, jsonString, isJsonVars=False, fix=True):
-		"""Parse JSON-String. Invalid json is sanified per default. If requested the json is parsed as JsonVar-dict."""
+		"""Parse JSON-String. Invalid json is sanitized per default. If requested the json is parsed as JsonVar-dict."""
 		s = jsonString
 
 		# Fix invalid json
 		if fix:
 			# Single Quotes to Double Quotes
 			s = s.replace("'", '"')
+
+			# Sanitize nesting errors and insert missing closing quotes
+			s = self._sanitizeJsonNestingLexer(s)
 
 			# Remove redundant trailing ',' 
 			s = re.sub(r',(?=[\n\s]*[\]\}])|,(?=[\n\s]*$)', '', s)
@@ -316,15 +422,21 @@ class SpeedportHybridApi(object):
 			if (re.match(r'^[\n\s]*\[', s) is None) and (re.match(r'\][\n\s]*$', s) is None):
 				s = '[%s]' % s
 
+		o = None
+
 		try:
 			# Parse JSON String
 			o = json.loads(s)
+		except Exception as e:
+			#print(jsonString)
+			raise SpeedportHybridApi.JsonParserException(jsonString, e)
+		
+		# Fix response
+		if fix:
+			if isinstance(o, list) and len(o) == 1:
+				o = o[0]
 
-			# Fix response
-			if fix:
-				if isinstance(o, list) and len(o) == 1:
-					o = o[0]
-
+		try:
 			# Parse vars if needed
 			if isJsonVars:
 				vx  = [SpeedportHybridApi.JsonVar(j) for j in o]
@@ -369,9 +481,14 @@ class SpeedportHybridApi(object):
 		# Parse response for challenge
 		try: 
 			res = self._parseJsonResponse(r.text, True)
-			challenge = res['challengev'].Value
 		except Exception as e:
 			raise SpeedportHybridApi.ApiException('parsing login challenge failed', e)
+
+		# Retrieve challenge value
+		try:
+			challenge = res['challengev'].Value
+		except Exception as e:
+			raise SpeedportHybridApi.ApiException('retrieving login challenge value failed', e)
 
 		# 2) Calculate response
 		response, salt = self._getChallengeResponse(pw, challenge)
