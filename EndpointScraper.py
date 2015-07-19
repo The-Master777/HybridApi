@@ -135,7 +135,7 @@ class BoxEndpointScraper(object):
 		{ 'file': "dhcp_server",    'description': "DHCP Server and existing DHCP-Leases", 'login': True,  'jsonvar': False },
 		{ 'file': "ipv6",           'description': "IPv6 Router Advertisement",            'login': True,  'jsonvar': False },
 		{ 'file': "dns",            'description': "DNS Information",                      'login': True,  'jsonvar': False },
-		# 'routing'-endpoint jsonvar is broken: Mixed response content
+		# 'routing'-endpoint jsonvar may be broken: Mixed response content
 		{ 'file': "routing",        'description': "Routing Table",                        'login': True,  'jsonvar': False }, 
 		{ 'file': "igmp_proxy",     'description': "IGMP Proxy",                           'login': True,  'jsonvar': False },
 		{ 'file': "igmp_snooping",  'description': "IGMP Snooping Table",                  'login': True,  'jsonvar': False },
@@ -149,5 +149,7 @@ class BoxEndpointScraper(object):
 		{ 'file': "filterlist",     'description': "Filter List Table",                    'login': True,  'jsonvar': False },
 		{ 'file': "bonding_tr181",  'description': "Bonding TR-181",                       'login': True,  'jsonvar': False },
 		{ 'file': "lteinfo",        'description': "LTE Information",                      'login': True,  'jsonvar': False },
+		{ 'file': "overview",       'description': "Übersicht",                            'login': True,  'jsonvar': True  },
 		{ 'file': "status",         'description': "Systemstatus",                         'login': False, 'jsonvar': True  },
+		{ 'file': "securestatus",   'description': "Sicherheitsübersicht",                 'login': False, 'jsonvar': True  },
 	]
