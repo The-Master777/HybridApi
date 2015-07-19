@@ -149,7 +149,7 @@ class BoxEndpointScraper(object):
 		{ 'file': "filterlist",     'description': "Filter List Table",                    'login': True,  'jsonvar': False },
 		{ 'file': "bonding_tr181",  'description': "Bonding TR-181",                       'login': True,  'jsonvar': False },
 		{ 'file': "lteinfo",        'description': "LTE Information",                      'login': True,  'jsonvar': False },
-		{ 'file': "overview",       'description': "Übersicht",                            'login': True,  'jsonvar': True  },
+		{ 'file': "overview",       'description': "Overview",                             'login': True,  'jsonvar': True  },
 		{ 'file': "status",         'description': "Systemstatus",                         'login': False, 'jsonvar': True  },
-		{ 'file': "securestatus",   'description': "Sicherheitsübersicht",                 'login': False, 'jsonvar': True  },
+		{ 'file': "securestatus",   'description': "Security overview",                    'login': False, 'jsonvar': True  },
 	]
