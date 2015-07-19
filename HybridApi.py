@@ -304,12 +304,12 @@ class SpeedportHybridApi(object):
 		"""Sanitize wrong nestings of json elements by adding missing closing parentheses (brackets & braces)"""
 
 		# The relevant json terminals
-		CHR_BACKSLASH     = '\\'
-		CHR_QUOTE         = '"'
-		CHR_BRACKET_OPEN  = '['
-		CHR_BRACKET_CLOSE = ']'
-		CHR_BRACE_OPEN    = '{'
-		CHR_BRACE_CLOSE   = '}'
+		CHR_BACKSLASH     = '\\' # \ Starts escape sequences in json-strings
+		CHR_QUOTE         = '"'  # " Starts and terminates json-strings if not escaped
+		CHR_BRACKET_OPEN  = '['  # [ Starts json-arrays
+		CHR_BRACKET_CLOSE = ']'  # ] Terminates json-arrays
+		CHR_BRACE_OPEN    = '{'  # { Starts json-objects
+		CHR_BRACE_CLOSE   = '}'  # } Terminates json-objects
 
 		stack = []  # The stack for terminal-symbols
 		m = []      # The list of symbol insertions
@@ -505,7 +505,7 @@ class SpeedportHybridApi(object):
 		try: 
 			res = self._parseJsonResponse(r.text, True)
 		except Exception as e:
-			print(r.text)
+			#print(r.text)
 			raise SpeedportHybridApi.ApiException('parsing login response failed', e)
 
 		# 4) Evaluate response
@@ -519,7 +519,10 @@ class SpeedportHybridApi(object):
 			return self, False, r # Login failed
 
 		# Load cookies
-		sid = r.cookies['SessionID_R3']
+		try:
+			sid = r.cookies['SessionID_R3']
+		except Exception as e:
+			raise SpeedportHybridApi.ApiException('retrieving session id failed', e)
 
 		# 5) Derive key and create session-object
 		dk = self._getDerivedKey(pw, salt)
